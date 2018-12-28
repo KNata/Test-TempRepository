@@ -1,6 +1,8 @@
 package Servlets;
 
+import DAO.DriverDAO;
 import DAO.VisitorDAO;
+import Model.Driver;
 import Model.Visitor;
 
 import javax.servlet.RequestDispatcher;
@@ -11,8 +13,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-    @WebServlet(name = "VisitorServlet", urlPatterns = "/VisitorServlet")
+@WebServlet(name = "VisitorServlet", urlPatterns = "/VisitorServlet")
     public class VisitorServlet extends HttpServlet {
 
         private VisitorDAO visitorDAO = new VisitorDAO();
@@ -36,8 +40,9 @@ import java.util.ArrayList;
                 throws ServletException, IOException {
 
             String action = request.getParameter("action");
+            System.out.println(action);
             switch (action) {
-                case "add":
+                case "addNewVisitor":
                     addNewVisitor(request, response);
                     break;
                 case "remove":
@@ -71,21 +76,36 @@ import java.util.ArrayList;
         }
 
         private void addNewVisitor(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-            int visitorID = Integer.valueOf(request.getParameter("visitorID"));
-            String visitorLogin = request.getParameter("login");
-            String visitorPassword = request.getParameter("password");
+            int visitorID = Integer.valueOf(request.getParameter("idVisitor"));
+            String visitorLogin = request.getParameter("visitorLogin");
+            String visitorPassword = request.getParameter("visitorPassword");
             String visitorName = request.getParameter("visitorName");
             String visitorRole = request.getParameter("visitorRole");
-
-            Visitor theVisitor = Visitor.newBuilder().setVisitorID(visitorID).setVisitorLogin(visitorLogin).setVisitorPassword(visitorPassword)
-                    .setVisitorRole(visitorRole).setVisitorName(visitorName).build();
-            boolean wasAdded = visitorDAO.addRecord(theVisitor);
-            ArrayList<Visitor> vistorList = visitorDAO.findAll();
-            request.setAttribute("visitor", vistorList);
-            if (wasAdded) {
-                String message = "The new visitor has been successfully created";
-                request.setAttribute("message", message);
-                forwardListVisitors(request, response, vistorList);
+            String driverID = request.getParameter("driverId");
+            Pattern pattern = Pattern.compile("[A-Z]{2}\\d{5}");
+            Matcher matcher = pattern.matcher(driverID);
+            boolean isMatch = matcher.find();
+            if (isMatch) {
+                DriverDAO driverDAO = new DriverDAO();
+                if (visitorID != 0 && visitorLogin != null && visitorName != null && visitorPassword != null && visitorRole != null) {
+                    Driver theDriver = Driver.newBuilder().setDriverID(driverID).setDriverName(visitorName).build();
+                    driverDAO.addRecord(theDriver);
+                    Visitor theVisitor = Visitor.newBuilder().setVisitorID(visitorID).setVisitorName(visitorName)
+                            .setVisitorLogin(visitorLogin).setVisitorPassword(visitorPassword).setVisitorRole(visitorRole).setDriver(theDriver)
+                            .build();
+                    boolean wasAdded = visitorDAO.addRecord(theVisitor);
+                    System.out.println(wasAdded);
+                    if (wasAdded) {
+                        RequestDispatcher dispatcher = getServletContext().getRequestDispatcher("/views/commonView/successPage.jsp");
+                        dispatcher.forward(request, response);
+                    } else {
+                        RequestDispatcher dispatcher = getServletContext().getRequestDispatcher("/views/commonView/errorPage.jsp");
+                        dispatcher.forward(request, response);
+                    }
+                }
+            } else {
+                RequestDispatcher dispatcher = getServletContext().getRequestDispatcher("/views/commonView/errorPage.jsp");
+                dispatcher.forward(request, response);
             }
         }
 
